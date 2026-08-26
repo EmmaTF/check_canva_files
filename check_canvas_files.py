@@ -1,4 +1,14 @@
 #!/usr/bin/env python3
+"""Check that all files of a Canvas course exist locally and download missing ones.
+
+Uses the Canvas REST API (https://unissvalbard.instructure.com) with a token
+provided through the CANVAS_TOKEN environment variable. Requires only the
+Python standard library — no pip install needed.
+
+The configuration constants at the top of this file (BASE_URL, COURSE_ID,
+COURSE_DIR, ...) must be adapted before first use. See README.md for details.
+"""
+
 import json
 import os
 import sys
@@ -14,6 +24,11 @@ SKIP_NAMES = {".DS_Store"}
 
 
 def next_link(link_header):
+    """Extract the URL of the next page from a Link header (RFC 5988).
+
+    Canvas paginates API responses and signals the next page through a
+    'Link' response header. Returns None when there is no next page.
+    """
     if not link_header:
         return None
     for part in link_header.split(","):
@@ -24,6 +39,11 @@ def next_link(link_header):
 
 
 def api_get(path):
+    """GET a paginated Canvas API endpoint and return the full list of items.
+
+    Follows 'next' links until every page has been fetched. Fails with a
+    clear message on missing/invalid token (HTTP 401) or network errors.
+    """
     token = os.environ.get("CANVAS_TOKEN")
     if not token:
         sys.exit("Token manquant : export CANVAS_TOKEN=<ton token> (Canvas → Account → Settings → New Access Token)")
@@ -49,8 +69,15 @@ def api_get(path):
 
 
 def local_index(root):
+    """Walk root recursively and index local files by lowercased name.
+
+    Returns {name_lower: [(path, size), ...]}. Names are matched
+    case-insensitively so a local copy counts regardless of its
+    subfolder — the user may reorganize files freely.
+    """
     index = {}
     for dirpath, dirnames, filenames in os.walk(root):
+        # Skip hidden directories (.git, .ipynb_checkpoints, ...)
         dirnames[:] = [d for d in dirnames if not d.startswith(".")]
         for name in filenames:
             if name in SKIP_NAMES:
@@ -65,6 +92,12 @@ def local_index(root):
 
 
 def download(url, dest_path, expected_size):
+    """Download url to dest_path and verify its size.
+
+    Writes to a temporary '.part' file first, then atomically renames it,
+    so a failed download never leaves a partial file behind. Returns an
+    error message on failure, or None on success.
+    """
     token = os.environ.get("CANVAS_TOKEN")
     os.makedirs(os.path.dirname(dest_path), exist_ok=True)
     tmp = dest_path + ".part"
@@ -92,6 +125,12 @@ def download(url, dest_path, expected_size):
 
 
 def mirror_path(folder_id, folders, display_name):
+    """Return the local mirror destination for a Canvas file.
+
+    Format: COURSE_DIR/MIRROR_DIR/<canvas folder path>/<file name>.
+    The root folder of the course ('course files') is stripped so the
+    mirror starts right at the course's top-level folders.
+    """
     full_name = folders.get(folder_id, "course files")
     parts = full_name.split("/")
     if len(parts) > 1 and parts[0].lower() in ("course files", "files"):
@@ -100,6 +139,8 @@ def mirror_path(folder_id, folders, display_name):
 
 
 def main():
+    """CLI entry point: fetch the Canvas tree, compare with local files and
+    download whatever is missing (or just report with --dry-run)."""
     dry_run = "--dry-run" in sys.argv
     if not os.path.isdir(COURSE_DIR):
         sys.exit(f"Dossier local introuvable : {COURSE_DIR}")
@@ -115,6 +156,7 @@ def main():
     index = local_index(COURSE_DIR)
 
     ok = warn = missing = failed = 0
+    # Group Canvas files by lowercased name to report duplicates
     by_name = {}
     for f in files:
         by_name.setdefault(f["display_name"].lower(), []).append(f)
@@ -125,6 +167,7 @@ def main():
         size = f.get("size")
         candidates = index.get(name_lower, [])
         if candidates:
+            # Found locally: OK if a copy has the same size, warn otherwise
             if any(s == size for _, s in candidates):
                 ok += 1
                 continue
@@ -133,6 +176,7 @@ def main():
             for path, s in candidates:
                 print(f"      local : {path} ({s} o)")
             continue
+        # Not found locally: download it into the mirror folder
         missing += 1
         dest = mirror_path(f.get("folder_id"), folders, f["display_name"])
         if dry_run:

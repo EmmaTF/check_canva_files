@@ -1,76 +1,80 @@
 # Canvas File Checker
 
-Script Python (stdlib uniquement — aucun `pip install`) qui vérifie que tous les fichiers d'un cours
-Canvas (<https://unissvalbard.instructure.com>) sont bien présents en local, et télécharge automatiquement
-ceux qui manquent.
+Python script (standard library only — no `pip install` needed) that checks that every file of a
+Canvas course (<https://unissvalbard.instructure.com>) is present locally, and automatically
+downloads whatever is missing.
 
-## Principe
+> [Version française (French version)](README.fr.md)
 
-1. Le script interroge l'**API Canvas** (token requis) pour lister l'arborescence complète d'un cours :
-   dossiers + fichiers (nom, taille, URL de téléchargement).
-2. Il **indexe les fichiers locaux** du dossier du cours (correspondance par nom de fichier,
-   insensible à la casse, peu importe le sous-dossier — pratique si tu réorganises tes fichiers).
-3. Il compare :
-   - nom trouvé + même taille → **OK**
-   - nom trouvé + taille différente → **avertissement** (copie locale possiblement obsolète)
-   - nom introuvable → **téléchargement automatique** dans `Canvas/` (miroir de l'arborescence Canvas)
-4. Rapport final : nombre de fichiers OK / différents / téléchargés.
+## How it works
 
-## Prérequis
+1. The script queries the **Canvas API** (token required) to list the full tree of a course:
+   folders + files (name, size, download URL).
+2. It **indexes the local files** of the course folder (matching by file name,
+   case-insensitive, regardless of the subfolder — handy if you reorganize your files).
+3. It compares:
+   - name found + same size → **OK**
+   - name found + different size → **warning** (the local copy may be outdated)
+   - name not found → **automatic download** into `Canvas/` (a mirror of the Canvas tree)
+4. Final report: number of files OK / different / downloaded.
 
-- Python 3.8+ (testé avec 3.14)
-- Un token d'API Canvas (voir ci-dessous)
-- Être inscrit·e au cours (le token doit avoir accès au cours)
+## Prerequisites
 
-## Obtenir un token Canvas
+- Python 3.8+ (tested with 3.14)
+- A Canvas API token (see below)
+- Enrollment in the course (the token must have access to it)
 
-1. Connecte-toi sur <https://unissvalbard.instructure.com>
-2. **Account** (en haut à gauche) → **Settings**
-3. Section **Approved Integrations** → **New Access Token**
-4. Donne un nom (ex. `file-checker`) et une date d'expiration, puis copie le token (il n'est affiché qu'une fois).
+## Getting a Canvas token
+
+1. Log in at <https://unissvalbard.instructure.com>
+2. **Account** (top left) → **Settings**
+3. In the **Approved Integrations** section → **New Access Token**
+4. Give it a name (e.g. `file-checker`) and an expiration date, then copy the token (it is only
+   shown once).
 
 ## Configuration
 
-Le script se configure en tête de fichier (`check_canvas_files.py`) :
+Configure the script at the top of `check_canvas_files.py`:
 
 ```python
 BASE_URL  = "https://unissvalbard.instructure.com"
-COURSE_ID = 652                            # id du cours dans l'URL Canvas
-COURSE_DIR = "1) AT-334 - ..."             # dossier local du cours
-MIRROR_DIR = "Canvas"                      # dossier miroir des fichiers téléchargés
+COURSE_ID = 652                            # course id from the Canvas URL
+COURSE_DIR = "1) AT-334 - ..."             # local folder of the course
+MIRROR_DIR = "Canvas"                      # mirror folder for downloaded files
 ```
 
-⚠️ L'id du cours est le nombre dans l'URL : `https://unissvalbard.instructure.com/courses/<ID>/files`.
+⚠️ The course id is the number in the URL: `https://unissvalbard.instructure.com/courses/<ID>/files`.
 
-## Utilisation
+## Usage
 
-Le token se passe par variable d'environnement (jamais dans le code !) :
+The token is passed through an environment variable (never in the code!):
 
 ```sh
-export CANVAS_TOKEN='<ton token>'
+export CANVAS_TOKEN='<your token>'
 ```
 
-Essai sans rien télécharger (recommandé en premier) :
+Try it without downloading anything (recommended first):
 
 ```sh
 python3 check_canvas_files.py --dry-run
 ```
 
-Vérification + téléchargement des fichiers manquants :
+Check + download the missing files:
 
 ```sh
 python3 check_canvas_files.py
 ```
 
-Les fichiers manquants sont téléchargés dans `<dossier du cours>/Canvas/<chemin Canvas>/<fichier>`
-(conserve l'arborescence du cours, réutilisable dans une autre session).
+Missing files are downloaded to `<course folder>/Canvas/<canvas path>/<file>` (the course tree is
+preserved, ready to be reused in another session).
 
-## Sécurité
+## Security
 
-- Ne committe **jamais** le token : il se passe uniquement par `CANVAS_TOKEN`.
-- Ne pas le mettre dans un fichier du dépôt ni dans l'historique git.
+- **Never commit the token**: it is only passed via `CANVAS_TOKEN`, never stored in the repository
+  or in git history.
 
-## Fichiers
+## Files
 
-- `check_canvas_files.py` — le script
-- `README.md` — ce document
+- `check_canvas_files.py` — the script
+- `README.md` — this document
+- `README.fr.md` — French version of this document
