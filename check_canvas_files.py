@@ -5,8 +5,10 @@ Uses the Canvas REST API (https://unissvalbard.instructure.com) with a token
 provided through the CANVAS_TOKEN environment variable. Requires only the
 Python standard library — no pip install needed.
 
-The configuration constants at the top of this file (BASE_URL, COURSE_ID,
-COURSE_DIR, ...) must be adapted before first use. See README.md for details.
+The checkout must be placed at the root of the local course folder: the
+course folder is resolved automatically as the checkout's parent directory,
+so no path or course name has to be configured. Only BASE_URL and COURSE_ID
+may need adapting — see README.md for details.
 """
 
 import json
@@ -15,9 +17,17 @@ import sys
 import urllib.error
 import urllib.request
 
+for stream in (sys.stdout, sys.stderr):
+    try:
+        stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
 BASE_URL = "https://unissvalbard.instructure.com"
 COURSE_ID = 652
-COURSE_DIR = "1) AT-334 - Arctic Marine Measurements Techniques, Operations and Transport"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+COURSE_DIR = os.path.dirname(SCRIPT_DIR)
+REPO_DIRNAME = os.path.basename(SCRIPT_DIR)
 MIRROR_DIR = "Canvas"
 PER_PAGE = 100
 SKIP_NAMES = {".DS_Store"}
@@ -73,12 +83,14 @@ def local_index(root):
 
     Returns {name_lower: [(path, size), ...]}. Names are matched
     case-insensitively so a local copy counts regardless of its
-    subfolder — the user may reorganize files freely.
+    subfolder — the user may reorganize files freely. The checkout
+    itself and hidden directories (.git, .ipynb_checkpoints, ...) are
+    skipped so the script never compares against its own files.
     """
     index = {}
     for dirpath, dirnames, filenames in os.walk(root):
-        # Skip hidden directories (.git, .ipynb_checkpoints, ...)
-        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+        dirnames[:] = [d for d in dirnames
+                       if not d.startswith(".") and d != REPO_DIRNAME]
         for name in filenames:
             if name in SKIP_NAMES:
                 continue
@@ -124,18 +136,33 @@ def download(url, dest_path, expected_size):
     return None
 
 
+def sanitize_component(name):
+    """Replace characters that Windows forbids in file names with '_'.
+
+    Applied on Windows only, so file names on macOS/Linux stay untouched.
+    """
+    if os.name != "nt":
+        return name
+    for ch in '<>:"/\\|?*':
+        name = name.replace(ch, "_")
+    name = name.rstrip(" .")
+    return name or "_"
+
+
 def mirror_path(folder_id, folders, display_name):
     """Return the local mirror destination for a Canvas file.
 
     Format: COURSE_DIR/MIRROR_DIR/<canvas folder path>/<file name>.
     The root folder of the course ('course files') is stripped so the
-    mirror starts right at the course's top-level folders.
+    mirror starts right at the course's top-level folders. Path parts
+    are sanitized on Windows (forbidden characters, trailing dots/spaces).
     """
     full_name = folders.get(folder_id, "course files")
     parts = full_name.split("/")
     if len(parts) > 1 and parts[0].lower() in ("course files", "files"):
         parts = parts[1:]
-    return os.path.join(COURSE_DIR, MIRROR_DIR, *parts, display_name)
+    parts = [sanitize_component(p) for p in parts]
+    return os.path.join(COURSE_DIR, MIRROR_DIR, *parts, sanitize_component(display_name))
 
 
 def main():
@@ -143,7 +170,11 @@ def main():
     download whatever is missing (or just report with --dry-run)."""
     dry_run = "--dry-run" in sys.argv
     if not os.path.isdir(COURSE_DIR):
-        sys.exit(f"Dossier local introuvable : {COURSE_DIR}")
+        sys.exit(
+            f"Dossier de cours local introuvable : {COURSE_DIR}\n"
+            "Le checkout du projet doit être placé à la racine du dossier de cours local\n"
+            "(ex. Documents/<Mon cours>/canvas-file-checker/). Voir README.md."
+        )
     if not os.environ.get("CANVAS_TOKEN"):
         sys.exit("Token manquant : export CANVAS_TOKEN=<ton token> (Canvas → Account → Settings → New Access Token)")
 

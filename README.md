@@ -32,31 +32,63 @@ downloads whatever is missing.
 4. Give it a name (e.g. `file-checker`) and an expiration date, then copy the token (it is only
    shown once).
 
-## Configuration
+## Setup
 
-Configure the script at the top of `check_canvas_files.py`:
+1. **Place the checkout at the root of your local course folder** — the script resolves the course
+   folder automatically as the *parent* of the checkout. No course name, no path to configure:
 
-```python
-BASE_URL  = "https://unissvalbard.instructure.com"
-COURSE_ID = 652                            # course id from the Canvas URL
-COURSE_DIR = "1) AT-334 - ..."             # local folder of the course
-MIRROR_DIR = "Canvas"                      # mirror folder for downloaded files
-```
+   ```
+   Documents/
+   └── <My course>/
+       ├── canvas-file-checker/   ← the git clone
+       ├── Lecture 1.pdf
+       └── ...
+   ```
 
-⚠️ The course id is the number in the URL: `https://unissvalbard.instructure.com/courses/<ID>/files`.
+   ```sh
+   cd "<My course>"
+   git clone https://github.com/EmmaTF/check_canva_files.git canvas-file-checker
+   ```
+
+2. **Set the course id** at the top of `check_canvas_files.py`:
+
+   ```python
+   BASE_URL  = "https://unissvalbard.instructure.com"
+   COURSE_ID = 652     # course id from the Canvas URL
+   ```
+
+   ⚠️ The course id is the number in the URL: `https://unissvalbard.instructure.com/courses/<ID>/files`.
+
+If the checkout is *not* at the root of a course folder, the script stops with an error telling you
+exactly which folder it looked for.
 
 ## Usage
 
 The token is passed through an environment variable (never in the code!):
 
+**macOS / Linux:**
+
 ```sh
 export CANVAS_TOKEN='<your token>'
+```
+
+**Windows — Command Prompt:**
+
+```bat
+set CANVAS_TOKEN=<your token>
+```
+
+**Windows — PowerShell:**
+
+```powershell
+$env:CANVAS_TOKEN="<your token>"
 ```
 
 Try it without downloading anything (recommended first):
 
 ```sh
-python3 check_canvas_files.py --dry-run
+python3 check_canvas_files.py --dry-run    # macOS/Linux
+py -3 check_canvas_files.py --dry-run      # Windows
 ```
 
 Check + download the missing files:
@@ -67,6 +99,26 @@ python3 check_canvas_files.py
 
 Missing files are downloaded to `<course folder>/Canvas/<canvas path>/<file>` (the course tree is
 preserved, ready to be reused in another session).
+
+## Platforms
+
+**macOS / Linux**
+- Python 3.8+ (`python3 --version`); install with Homebrew or your package manager if missing.
+- Run with `python3 check_canvas_files.py`.
+- To keep the token, add `export CANVAS_TOKEN='...'` to `~/.zshrc` (macOS) or `~/.bashrc` (Linux).
+
+**Windows**
+- Install Python from <https://www.python.org/downloads/> and tick **Add python.exe to PATH**.
+- Run with `py -3 check_canvas_files.py` (or `python check_canvas_files.py`).
+- To keep the token, add `set CANVAS_TOKEN=...` to your Command Prompt profile or
+  `$env:CANVAS_TOKEN="..."` to your PowerShell profile.
+- On Windows, characters forbidden in file names (`: ? * ...`, trailing dots/spaces) are replaced
+  with `_` when downloading; file names on macOS/Linux are never altered.
+
+## Updating
+
+If you cloned with git, run `git pull` inside each checkout to get the latest version. If you have
+several course folders, clone the repository once per course folder.
 
 ## Security
 

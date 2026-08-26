@@ -31,31 +31,63 @@ ceux qui manquent.
 3. Section **Approved Integrations** → **New Access Token**
 4. Donne un nom (ex. `file-checker`) et une date d'expiration, puis copie le token (il n'est affiché qu'une fois).
 
-## Configuration
+## Installation
 
-Le script se configure en tête de fichier (`check_canvas_files.py`) :
+1. **Place le checkout à la racine de ton dossier de cours local** — le script résout le dossier du
+   cours automatiquement comme le *parent* du checkout. Aucun nom de cours ni chemin à configurer :
 
-```python
-BASE_URL  = "https://unissvalbard.instructure.com"
-COURSE_ID = 652                            # id du cours dans l'URL Canvas
-COURSE_DIR = "1) AT-334 - ..."             # dossier local du cours
-MIRROR_DIR = "Canvas"                      # dossier miroir des fichiers téléchargés
-```
+   ```
+   Documents/
+   └── <Mon cours>/
+       ├── canvas-file-checker/   ← le clone git
+       ├── Lecture 1.pdf
+       └── ...
+   ```
 
-⚠️ L'id du cours est le nombre dans l'URL : `https://unissvalbard.instructure.com/courses/<ID>/files`.
+   ```sh
+   cd "<Mon cours>"
+   git clone https://github.com/EmmaTF/check_canva_files.git canvas-file-checker
+   ```
+
+2. **Règle l'id du cours** en tête de `check_canvas_files.py` :
+
+   ```python
+   BASE_URL  = "https://unissvalbard.instructure.com"
+   COURSE_ID = 652     # id du cours dans l'URL Canvas
+   ```
+
+   ⚠️ L'id du cours est le nombre dans l'URL : `https://unissvalbard.instructure.com/courses/<ID>/files`.
+
+Si le checkout n'est *pas* à la racine d'un dossier de cours, le script s'arrête avec une erreur
+indiquant exactement le dossier qu'il cherchait.
 
 ## Utilisation
 
 Le token se passe par variable d'environnement (jamais dans le code !) :
 
+**macOS / Linux :**
+
 ```sh
 export CANVAS_TOKEN='<ton token>'
+```
+
+**Windows — Invite de commandes :**
+
+```bat
+set CANVAS_TOKEN=<ton token>
+```
+
+**Windows — PowerShell :**
+
+```powershell
+$env:CANVAS_TOKEN="<ton token>"
 ```
 
 Essai sans rien télécharger (recommandé en premier) :
 
 ```sh
-python3 check_canvas_files.py --dry-run
+python3 check_canvas_files.py --dry-run    # macOS/Linux
+py -3 check_canvas_files.py --dry-run      # Windows
 ```
 
 Vérification + téléchargement des fichiers manquants :
@@ -66,6 +98,26 @@ python3 check_canvas_files.py
 
 Les fichiers manquants sont téléchargés dans `<dossier du cours>/Canvas/<chemin Canvas>/<fichier>`
 (conserve l'arborescence du cours, réutilisable dans une autre session).
+
+## Plateformes
+
+**macOS / Linux**
+- Python 3.8+ (`python3 --version`) ; installe-le avec Homebrew ou ton gestionnaire de paquets s'il manque.
+- Lancement : `python3 check_canvas_files.py`.
+- Pour conserver le token, ajoute `export CANVAS_TOKEN='...'` dans `~/.zshrc` (macOS) ou `~/.bashrc` (Linux).
+
+**Windows**
+- Installe Python depuis <https://www.python.org/downloads/> et coche **Add python.exe to PATH**.
+- Lancement : `py -3 check_canvas_files.py` (ou `python check_canvas_files.py`).
+- Pour conserver le token, ajoute `set CANVAS_TOKEN=...` au profil de l'invite de commandes ou
+  `$env:CANVAS_TOKEN="..."` au profil PowerShell.
+- Sur Windows, les caractères interdits dans les noms de fichiers (`: ? * ...`, espaces/traits finaux)
+  sont remplacés par `_` au téléchargement ; les noms de fichiers sur macOS/Linux ne sont jamais modifiés.
+
+## Mises à jour
+
+Si tu as cloné avec git, lance `git pull` dans chaque checkout pour récupérer la dernière version.
+Si tu as plusieurs dossiers de cours, clone le dépôt une fois par dossier de cours.
 
 ## Sécurité
 
