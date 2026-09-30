@@ -8,15 +8,27 @@ ceux qui manquent.
 
 ## Principe
 
-1. Le script interroge l'**API Canvas** (token requis) pour lister l'arborescence complète d'un cours :
-   dossiers + fichiers (nom, taille, URL de téléchargement).
+1. Le script interroge l'**API Canvas** (token requis) pour lister les fichiers d'un cours, à
+   **trois endroits**, car Canvas les cache selon les cours :
+   - l'onglet **Files** (`/files`), arborescence dossiers + fichiers ;
+   - les **Modules**, où un fichier est un élément de type `File` ;
+   - les **Pages** du cours, dont le corps contient les liens vers les pièces jointes. Un module
+     peut ne contenir aucun fichier et c'est pourtant là que se trouve le cours : le corps de la
+     page est alors le seul endroit où les trouver.
 2. Il **indexe les fichiers locaux** du dossier du cours (correspondance par nom de fichier,
    insensible à la casse, peu importe le sous-dossier — pratique si tu réorganises tes fichiers).
 3. Il compare :
    - nom trouvé + même taille → **OK**
    - nom trouvé + taille différente → **avertissement** (copie locale possiblement obsolète)
-   - nom introuvable → **téléchargement automatique** dans `Canvas/` (miroir de l'arborescence Canvas)
+   - nom introuvable → **téléchargement automatique** dans `Canvas/` (miroir de l'arborescence
+     Canvas ; un fichier sans dossier propre est rangé sous son module, et aussi sous sa page)
 4. Rapport final : nombre de fichiers OK / différents / téléchargés.
+
+Les modules non publiés sont ignorés. Si Canvas refuse une des trois sources (HTTP 403), le script
+le signale et continue avec les autres : un 403 sur l'onglet Files n'empêche pas de récupérer les
+fichiers des modules et des pages.
+
+
 
 ## Prérequis
 
@@ -90,6 +102,12 @@ python3 check_canvas_files.py --dry-run    # macOS/Linux
 py -3 check_canvas_files.py --dry-run      # Windows
 ```
 
+Vérifier quels accès le token a sur le cours (utile en cas d'erreur 403) :
+
+```sh
+python3 check_canvas_files.py --check
+```
+
 Vérification + téléchargement des fichiers manquants :
 
 ```sh
@@ -98,6 +116,15 @@ python3 check_canvas_files.py
 
 Les fichiers manquants sont téléchargés dans `<dossier du cours>/Canvas/<chemin Canvas>/<fichier>`
 (conserve l'arborescence du cours, réutilisable dans une autre session).
+
+### Erreur 403 « user not authorised »
+
+Le token n'a pas les droits sur une partie du cours. Causes courantes : token créé avant
+l'inscription au cours, ou token créé avec des droits limités. Le script continue malgré tout
+avec les parties accessibles. Si `python3 check_canvas_files.py --check` renvoie 403 partout,
+recrée un token (Account → Settings → New Access Token) et vérifie que `COURSE_ID` correspond à
+l'URL du cours.
+
 
 ## Plateformes
 

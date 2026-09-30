@@ -8,15 +8,26 @@ downloads whatever is missing.
 
 ## How it works
 
-1. The script queries the **Canvas API** (token required) to list the full tree of a course:
-   folders + files (name, size, download URL).
+1. The script queries the **Canvas API** (token required) to list a course's files from **three**
+   places, because Canvas hides them in different spots depending on the course:
+   - the **Files** area (`/files`): folder tree + files;
+   - the **Modules**, where a file is an item of type `File`;
+   - the course **Pages**, whose body links to its attachments. A module can hold no file item at
+     all and still be where the material lives, and the page body is then the only place to find it.
 2. It **indexes the local files** of the course folder (matching by file name,
    case-insensitive, regardless of the subfolder — handy if you reorganize your files).
 3. It compares:
    - name found + same size → **OK**
    - name found + different size → **warning** (the local copy may be outdated)
-   - name not found → **automatic download** into `Canvas/` (a mirror of the Canvas tree)
+   - name not found → **automatic download** into `Canvas/` (a mirror of the Canvas tree; a file
+     that has no folder of its own is filed under its module, and under its page as well)
 4. Final report: number of files OK / different / downloaded.
+
+Unpublished modules are skipped. If Canvas refuses one of the three sources (HTTP 403), the script
+says so and carries on with the others: a 403 on the Files area does not prevent downloading the
+files of the modules and pages.
+
+
 
 ## Prerequisites
 
@@ -91,6 +102,12 @@ python3 check_canvas_files.py --dry-run    # macOS/Linux
 py -3 check_canvas_files.py --dry-run      # Windows
 ```
 
+Check which parts of the course the token can read (useful when you hit a 403):
+
+```sh
+python3 check_canvas_files.py --check
+```
+
 Check + download the missing files:
 
 ```sh
@@ -99,6 +116,14 @@ python3 check_canvas_files.py
 
 Missing files are downloaded to `<course folder>/Canvas/<canvas path>/<file>` (the course tree is
 preserved, ready to be reused in another session).
+
+### "403 user not authorised" error
+
+The token has no rights on part of the course. Usual causes: the token was created before you
+enrolled, or it was created with limited rights. The script still runs with whatever is readable.
+If `python3 check_canvas_files.py --check` reports 403 everywhere, create a new token
+(Account → Settings → New Access Token) and check that `COURSE_ID` matches the course URL.
+
 
 ## Platforms
 
